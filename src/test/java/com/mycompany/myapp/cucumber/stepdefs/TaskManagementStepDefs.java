@@ -67,6 +67,27 @@ public class TaskManagementStepDefs extends StepDefs {
         // Clear the security context
         SecurityContextHolder.clearContext();
 
+        // Create test user with proper password and unique login
+        String uniqueLogin = "user1_" + scenarioCounter;
+
+        // Check if user already exists
+        currentUser = userRepository
+            .findOneByLogin(uniqueLogin)
+            .orElseGet(() -> {
+                User newUser = new User();
+                newUser.setLogin(uniqueLogin);
+                newUser.setPassword(RandomStringUtils.insecure().nextAlphanumeric(60));
+                newUser.setActivated(true);
+                newUser.setEmail(uniqueLogin + "@localhost.com");
+                newUser.setFirstName("User");
+                newUser.setLastName("One");
+                return userRepository.save(newUser);
+            });
+
+        // Set security context
+        SecurityContextHolder.getContext()
+            .setAuthentication(new UsernamePasswordAuthenticationToken(currentUser.getLogin(), currentUser.getPassword()));
+
         currentTask = null;
         currentTasks.clear();
         lastException = null;

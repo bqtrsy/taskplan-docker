@@ -58,6 +58,7 @@ public class TaskService {
      */
     public Task update(Task task) {
         LOG.debug("Request to update Task : {}", task);
+        task.setLastModifiedDate(Instant.now());
         return taskRepository.save(task);
     }
 

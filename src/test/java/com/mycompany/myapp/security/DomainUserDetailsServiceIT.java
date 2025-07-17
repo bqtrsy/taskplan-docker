@@ -2,6 +2,7 @@ package com.mycompany.myapp.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.mycompany.myapp.IntegrationTest;
 import com.mycompany.myapp.domain.User;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -132,5 +134,47 @@ class DomainUserDetailsServiceIT {
         assertThatExceptionOfType(UserNotActivatedException.class).isThrownBy(() ->
             domainUserDetailsService.loadUserByUsername(USER_THREE_LOGIN)
         );
+    }
+
+    @Test
+    @Transactional
+    void testAuthenticationWithInvalidEmail() {
+        assertThatThrownBy(() -> domainUserDetailsService.loadUserByUsername("invalid@email.com"))
+            .isInstanceOf(UsernameNotFoundException.class)
+            .hasMessageContaining("User with email invalid@email.com was not found");
+    }
+
+    @Test
+    @Transactional
+    void testAuthenticationWithDeactivatedUser() {
+        // Create deactivated user
+        User deactivatedUser = new User();
+        deactivatedUser.setLogin("deactivated");
+        deactivatedUser.setPassword(RandomStringUtils.randomAlphanumeric(60));
+        deactivatedUser.setActivated(false);
+        deactivatedUser.setEmail("deactivated@example.com");
+        userRepository.saveAndFlush(deactivatedUser);
+
+        // Test authentication
+        assertThatThrownBy(() -> domainUserDetailsService.loadUserByUsername("deactivated"))
+            .isInstanceOf(UserNotActivatedException.class)
+            .hasMessageContaining("User deactivated was not activated");
+    }
+
+    @Test
+    @Transactional
+    void testAuthenticationWithEmailLogin() {
+        // Create user with email
+        User user = new User();
+        user.setLogin("emailuser");
+        user.setPassword(RandomStringUtils.randomAlphanumeric(60));
+        user.setActivated(true);
+        user.setEmail("emailuser@example.com");
+        userRepository.saveAndFlush(user);
+
+        // Test authentication using email
+        UserDetails userDetails = domainUserDetailsService.loadUserByUsername("emailuser@example.com");
+        assertThat(userDetails).isNotNull();
+        assertThat(userDetails.getUsername()).isEqualTo("emailuser");
     }
 }
